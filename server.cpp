@@ -13,10 +13,8 @@ int analyzePassword(string pass)
     bool hasUpper = false, hasLower = false;
     bool hasDigit = false, hasSpecial = false;
 
-    int length = pass.length();
-
-    if(length >= 8) score += 20;
-    if(length >= 12) score += 10;
+    if(pass.length() >= 8) score += 20;
+    if(pass.length() >= 12) score += 10;
 
     for(char c : pass)
     {
@@ -45,6 +43,14 @@ string strengthText(int score)
     else return "STRONG";
 }
 
+string strengthColor(int score)
+{
+    if(score <= 30) return "red";
+    else if(score <= 50) return "orange";
+    else if(score <= 75) return "#f1c40f";
+    else return "green";
+}
+
 int main()
 {
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -56,13 +62,11 @@ int main()
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
 
-    int port = stoi(getenv("PORT"));  // REQUIRED for Render
+    int port = stoi(getenv("PORT"));
     server.sin_port = htons(port);
 
     bind(server_socket, (sockaddr*)&server, sizeof(server));
     listen(server_socket, 5);
-
-    cout << "Server running on port " << port << endl;
 
     while(true)
     {
@@ -88,31 +92,77 @@ int main()
         if(password == "")
         {
             html =
-                "<html><body>"
-                "<h2>Password Strength Checker</h2>"
-                "<form method='GET'>"
-                "Enter Password: <input type='text' name='password'/>"
-                "<input type='submit' value='Check'/>"
-                "</form>"
-                "</body></html>";
+            "<!DOCTYPE html>"
+            "<html><head>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+            "<title>Password Strength Checker</title>"
+            "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css'>"
+            "<style>"
+            "body{margin:0;font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);"
+            "height:100vh;display:flex;justify-content:center;align-items:center;}"
+            ".card{background:white;padding:40px;border-radius:15px;width:400px;"
+            "box-shadow:0 15px 30px rgba(0,0,0,0.2);text-align:center;}"
+            "h2{margin-bottom:25px;}"
+            ".input-box{position:relative;}"
+            "input{width:100%;padding:12px 45px 12px 12px;font-size:16px;"
+            "border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}"
+            ".input-box i{position:absolute;right:15px;top:50%;"
+            "transform:translateY(-50%);cursor:pointer;color:#666;}"
+            "button{margin-top:20px;padding:10px 20px;border:none;"
+            "border-radius:8px;background:#667eea;color:white;font-size:16px;cursor:pointer;}"
+            "button:hover{background:#5a67d8;}"
+            "</style>"
+            "</head><body>"
+            "<div class='card'>"
+            "<h2>Password Strength Checker</h2>"
+            "<form method='GET'>"
+            "<div class='input-box'>"
+            "<input type='password' id='password' name='password' placeholder='Enter password' required>"
+            "<i class='fa-solid fa-eye' onclick='togglePassword()'></i>"
+            "</div>"
+            "<button type='submit'>Check Strength</button>"
+            "</form>"
+            "</div>"
+            "<script>"
+            "function togglePassword(){"
+            "var x=document.getElementById('password');"
+            "if(x.type==='password'){x.type='text';}"
+            "else{x.type='password';}"
+            "}"
+            "</script>"
+            "</body></html>";
         }
         else
         {
             int score = analyzePassword(password);
             string level = strengthText(score);
+            string color = strengthColor(score);
 
             html =
-                "<html><body>"
-                "<h2>Password Strength Checker</h2>"
-                "<p>Score: " + to_string(score) + "/100</p>"
-                "<p>Strength: <b>" + level + "</b></p>"
-                "<a href='/'>Check another password</a>"
-                "</body></html>";
+            "<!DOCTYPE html>"
+            "<html><head>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+            "<title>Result</title>"
+            "<style>"
+            "body{margin:0;font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);"
+            "height:100vh;display:flex;justify-content:center;align-items:center;}"
+            ".card{background:white;padding:40px;border-radius:15px;width:400px;"
+            "box-shadow:0 15px 30px rgba(0,0,0,0.2);text-align:center;}"
+            "a{display:inline-block;margin-top:20px;text-decoration:none;color:#667eea;}"
+            "</style>"
+            "</head><body>"
+            "<div class='card'>"
+            "<h2>Password Strength Checker</h2>"
+            "<p><b>Score:</b> " + to_string(score) + "/100</p>"
+            "<p><b>Strength:</b> <span style='color:" + color + ";font-weight:bold;'>" + level + "</span></p>"
+            "<a href='/'>Check another password</a>"
+            "</div>"
+            "</body></html>";
         }
 
         string response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html\r\n\r\n" + html;
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n\r\n" + html;
 
         send(client_socket, response.c_str(), response.length(), 0);
         close(client_socket);
