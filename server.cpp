@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -7,13 +8,15 @@
 
 using namespace std;
 
-int analyzePassword(string pass)
+int analyzePassword(string pass, vector<string> &suggestions)
 {
     int score = 0;
     bool hasUpper = false, hasLower = false;
     bool hasDigit = false, hasSpecial = false;
 
     if(pass.length() >= 8) score += 20;
+    else suggestions.push_back("Use at least 8 characters");
+
     if(pass.length() >= 12) score += 10;
 
     for(char c : pass)
@@ -25,12 +28,21 @@ int analyzePassword(string pass)
     }
 
     if(hasUpper) score += 15;
+    else suggestions.push_back("Add uppercase letters");
+
     if(hasLower) score += 15;
+    else suggestions.push_back("Add lowercase letters");
+
     if(hasDigit) score += 15;
+    else suggestions.push_back("Include numbers");
+
     if(hasSpecial) score += 15;
+    else suggestions.push_back("Use special characters (!@#$ etc)");
 
     if(pass != "123456" && pass != "password")
         score += 10;
+    else
+        suggestions.push_back("Avoid common passwords");
 
     return score;
 }
@@ -92,17 +104,15 @@ int main()
         if(password == "")
         {
             html =
-            "<!DOCTYPE html>"
-            "<html><head>"
+            "<!DOCTYPE html><html><head>"
             "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-            "<title>Password Strength Checker</title>"
+            "<title>Password Checker</title>"
             "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css'>"
             "<style>"
             "body{margin:0;font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);"
             "height:100vh;display:flex;justify-content:center;align-items:center;}"
             ".card{background:white;padding:40px;border-radius:15px;width:400px;"
             "box-shadow:0 15px 30px rgba(0,0,0,0.2);text-align:center;}"
-            "h2{margin-bottom:25px;}"
             ".input-box{position:relative;}"
             "input{width:100%;padding:12px 45px 12px 12px;font-size:16px;"
             "border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}"
@@ -110,7 +120,6 @@ int main()
             "transform:translateY(-50%);cursor:pointer;color:#666;}"
             "button{margin-top:20px;padding:10px 20px;border:none;"
             "border-radius:8px;background:#667eea;color:white;font-size:16px;cursor:pointer;}"
-            "button:hover{background:#5a67d8;}"
             "</style>"
             "</head><body>"
             "<div class='card'>"
@@ -121,28 +130,36 @@ int main()
             "<i class='fa-solid fa-eye' onclick='togglePassword()'></i>"
             "</div>"
             "<button type='submit'>Check Strength</button>"
-            "</form>"
-            "</div>"
+            "</form></div>"
             "<script>"
             "function togglePassword(){"
             "var x=document.getElementById('password');"
-            "if(x.type==='password'){x.type='text';}"
-            "else{x.type='password';}"
-            "}"
-            "</script>"
-            "</body></html>";
+            "x.type=(x.type==='password')?'text':'password';}"
+            "</script></body></html>";
         }
         else
         {
-            int score = analyzePassword(password);
+            vector<string> suggestions;
+            int score = analyzePassword(password, suggestions);
             string level = strengthText(score);
             string color = strengthColor(score);
 
+            string suggestionHTML = "";
+            if(!suggestions.empty())
+            {
+                suggestionHTML = "<ul style='text-align:left;margin-top:15px;'>";
+                for(string s : suggestions)
+                    suggestionHTML += "<li>" + s + "</li>";
+                suggestionHTML += "</ul>";
+            }
+            else
+            {
+                suggestionHTML = "<p style='color:green;margin-top:15px;'>Excellent Password!</p>";
+            }
+
             html =
-            "<!DOCTYPE html>"
-            "<html><head>"
+            "<!DOCTYPE html><html><head>"
             "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-            "<title>Result</title>"
             "<style>"
             "body{margin:0;font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);"
             "height:100vh;display:flex;justify-content:center;align-items:center;}"
@@ -155,9 +172,9 @@ int main()
             "<h2>Password Strength Checker</h2>"
             "<p><b>Score:</b> " + to_string(score) + "/100</p>"
             "<p><b>Strength:</b> <span style='color:" + color + ";font-weight:bold;'>" + level + "</span></p>"
+            + suggestionHTML +
             "<a href='/'>Check another password</a>"
-            "</div>"
-            "</body></html>";
+            "</div></body></html>";
         }
 
         string response =
@@ -168,6 +185,5 @@ int main()
         close(client_socket);
     }
 
-    close(server_socket);
     return 0;
 }
