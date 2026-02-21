@@ -1,8 +1,9 @@
 #include <iostream>
 #include <string>
-#include <winsock2.h>
-
-#pragma comment(lib, "ws2_32.lib")
+#include <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <cstdlib>
 
 using namespace std;
 
@@ -17,11 +18,11 @@ int analyzePassword(string pass)
     if(length >= 8) score += 20;
     if(length >= 12) score += 10;
 
-    for(int i = 0; i < length; i++)
+    for(char c : pass)
     {
-        if(pass[i] >= 'A' && pass[i] <= 'Z') hasUpper = true;
-        else if(pass[i] >= 'a' && pass[i] <= 'z') hasLower = true;
-        else if(pass[i] >= '0' && pass[i] <= '9') hasDigit = true;
+        if(isupper(c)) hasUpper = true;
+        else if(islower(c)) hasLower = true;
+        else if(isdigit(c)) hasDigit = true;
         else hasSpecial = true;
     }
 
@@ -46,33 +47,34 @@ string strengthText(int score)
 
 int main()
 {
-    WSADATA wsa;
-    WSAStartup(MAKEWORD(2,2), &wsa);
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-    SOCKET server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    int opt = 1;
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     sockaddr_in server;
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(8080);
+
+    int port = stoi(getenv("PORT"));  // REQUIRED for Render
+    server.sin_port = htons(port);
 
     bind(server_socket, (sockaddr*)&server, sizeof(server));
     listen(server_socket, 5);
 
-    cout << "Server running at http://localhost:8080\n";
+    cout << "Server running on port " << port << endl;
 
     while(true)
     {
-        SOCKET client_socket = accept(server_socket, NULL, NULL);
+        int client_socket = accept(server_socket, NULL, NULL);
 
         char buffer[30000] = {0};
-        recv(client_socket, buffer, 30000, 0);
+        read(client_socket, buffer, 30000);
 
         string request(buffer);
-
         string password = "";
-        size_t pos = request.find("password=");
 
+        size_t pos = request.find("password=");
         if(pos != string::npos)
         {
             password = request.substr(pos + 9);
@@ -113,10 +115,9 @@ int main()
             "Content-Type: text/html\r\n\r\n" + html;
 
         send(client_socket, response.c_str(), response.length(), 0);
-        closesocket(client_socket);
+        close(client_socket);
     }
 
-    WSACleanup();
+    close(server_socket);
     return 0;
 }
-
