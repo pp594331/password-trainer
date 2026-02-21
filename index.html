@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Password Trainer</title>
+</head>
+<body>
+
+<h2>Progressive Password Strength Trainer</h2>
+
+<input type="password" id="pass">
+<button onclick="check()">Check</button>
+
+<p id="result"></p>
+
+<script>
+function check() {
+    let p = document.getElementById("pass").value;
+
+    fetch("/analyze?pass=" + p)
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerHTML =
+            "Score: " + data.score +
+            "<br>Strength: " + data.strength;
+    });
+}
+</script>
+
+</body>
+</html>
